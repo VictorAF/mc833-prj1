@@ -1,3 +1,4 @@
+// gcc -o server server.c -I /usr/include/postgresql/usr/local/Cellar/postgresql/10.5/include -lpq -std=c99
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,17 +8,18 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/time.h>
+#include <libpq-fe.h>
 
 #define PORT 4444
 
-// Some notes on data structures used:
-// (IPv4 only--see struct sockaddr_in6 for IPv6)
-// struct sockaddr_in {
-//     short int          sin_family;  // Address family, AF_INET
-//     unsigned short int sin_port;    // Port number
-//     struct in_addr     sin_addr;    // Internet address
-//     unsigned char      sin_zero[8]; // Same size as struct sockaddr
-// };
+// Function prototypes:
+void getPeopleByCourse(char *token, int *current_socket, PGconn *conn);
+
+void do_exit(PGconn *conn) {
+
+    PQfinish(conn);
+    exit(1);
+}
 
 int main(){
 
@@ -32,7 +34,18 @@ int main(){
 	socklen_t addr_size;
 
 	char buffer[1024];
+  char *token;
 	pid_t childpid;
+
+  // Database connection
+  PGconn *conn = PQconnectdb("user=networks password=networks123 dbname=network_proj_one");
+
+  if (PQstatus(conn) == CONNECTION_BAD) {
+
+      fprintf(stderr, "Connection to database failed: %s\n",
+          PQerrorMessage(conn));
+      do_exit(conn);
+  }
 
   // Create passive Socket
 	sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -60,25 +73,13 @@ int main(){
 	}
 	printf("[+]Bind to port %d\n", 4444);
 
-  // sockfd is the usual socket file descriptor from the socket() system call. backlog is the number of connections allowed on the incoming queue. What does that mean? Well, incoming connections are going to wait in this queue until you accept() them (see below) and this is the limit on how many can queue up. Most systems silently limit this number to about 20; you can probably get away with setting it to 5 or 10.
-
 	if(listen(sockfd, 2) == 0){
 		printf("[+]Listening....\n");
 	}else{
 		printf("[-]Error in binding.\n");
 	}
 
-  // Get ready—the accept() call is kinda weird! What's going to happen is this: someone far far away
-  // will try to connect() to your machine on a port that you are listen()ing on. Their connection will be queued up waiting to be accept()ed. You call accept() and you tell it to get the pending connection. It'll return to you a brand new socket file descriptor to use for this single connection! That's right, suddenly you have two socket file descriptors for the price of one! The original one is still listening for more new connections, and the newly created one is finally ready to send() and recv().
-
-  // Again, note that we will use the socket descriptor new_fd for all send() and recv() calls. If you're only getting one single connection ever, you can close() the listening sockfd in order to prevent more incoming connections on the same port, if you so desire. BUT THAT is not the case right here
-
-  // send() returns the number of bytes actually sent out—this might be less than the number you told it to send! See, sometimes you tell it to send a whole gob of data and it just can't handle it. It'll fire off as much
-  // of the data as it can, and trust you to send the rest later. Remember, if the value returned by send() doesn't match the value in len, it's up to you to send the rest of the string.
-
 	while(1){
-
-		// How to deny a new incoming connection?
 
 		newSocket = accept(sockfd, (struct sockaddr*)&newAddr, &addr_size);
 		if(newSocket < 0){
@@ -92,10 +93,39 @@ int main(){
 			while(1){
 				recv(newSocket, buffer, 1024, 0);
 				gettimeofday(&tv1, NULL);
-				if(strcmp(buffer, ":exit") == 0){
+
+        // Get command and args from buffer:
+        printf("Client request: %s\n", buffer);
+
+        /* get the first token */
+        token = strtok(buffer, " ");
+
+				if(strcmp(token, ":exit") == 0){
 					printf("Disconnected from %s:%d\n", inet_ntoa(newAddr.sin_addr), ntohs(newAddr.sin_port));
 					break;
-				}else{
+				}
+        else if(strcmp(token, "get-people-by-course") == 0){
+					// send(newSocket, token, strlen(token), 0);
+          getPeopleByCourse(token, &newSocket, conn);
+					bzero(buffer, sizeof(buffer));
+				}
+        else if(strcmp(token, ":cu1") == 0){
+					printf("Disconnected from %s:%d\n", inet_ntoa(newAddr.sin_addr), ntohs(newAddr.sin_port));
+					break;
+				}
+        else if(strcmp(token, ":cu2") == 0){
+					printf("Disconnected from %s:%d\n", inet_ntoa(newAddr.sin_addr), ntohs(newAddr.sin_port));
+					break;
+				}
+        else if(strcmp(token, ":cu3") == 0){
+					printf("Disconnected from %s:%d\n", inet_ntoa(newAddr.sin_addr), ntohs(newAddr.sin_port));
+					break;
+				}
+        else if(strcmp(token, ":cu4") == 0){
+					printf("Disconnected from %s:%d\n", inet_ntoa(newAddr.sin_addr), ntohs(newAddr.sin_port));
+					break;
+				}
+        else{
 					printf("Client: %s\n", buffer);
 					send(newSocket, buffer, strlen(buffer), 0);
 					bzero(buffer, sizeof(buffer));
@@ -113,5 +143,76 @@ int main(){
 
 	close(newSocket);
 
+  PQfinish(conn);
+
 	return 0;
+}
+
+void getPeopleByCourse(char *token, int *current_socket, PGconn *conn){
+
+  char *error_answer = "\n----- Error -----\nThe get-people-by-course command requires 1 argument(s):\nget-people-by-course <course-name>\n";
+  char *no_rows = "\n----- Query result -----\n\nNo records found for this course\n";
+  int argument_counter = -1;
+  int rows = 0;
+  char *course;
+  char query[2048];
+  char response[4096];
+
+  /* walk through other tokens */
+  while( token != NULL ) {
+    // printf("_%s\n", token);
+    argument_counter++;
+
+    // Save the argument
+    if(argument_counter == 1){
+      course = token;
+    }
+
+    token = strtok(NULL, " ");
+  }
+
+  // Check number of arguments
+  if(argument_counter == 1){
+
+    strcpy(query, "SELECT nome FROM Users where formacao = '");
+    strcat(query, course);
+    strcat(query, "'");
+    PGresult *res = PQexec(conn, query);
+
+    if (PQresultStatus(res) != PGRES_TUPLES_OK) {
+
+        printf("No data retrieved\n");
+        PQclear(res);
+        // Maybe there is no need to close the connection
+        // do_exit(conn);
+    }
+    else{
+      rows = PQntuples(res);
+      printf("rows: %d\n", rows);
+
+      //Create a header for the response:
+      strcpy(response, "\n----- Query result -----\n\n");
+
+      if(rows > 0){
+        for(int i=0; i<rows; i++) {
+
+            printf("%s\n", PQgetvalue(res, i, 0));
+            strcat(response, PQgetvalue(res, i, 0));
+            strcat(response, "\n");
+        }
+
+        // Maybe treat no rows here
+        send(*current_socket, &response, strlen(response), 0);
+        bzero(response, sizeof(response));
+      }
+      else{
+        send(*current_socket, no_rows, strlen(no_rows), 0);
+      }
+    }
+  }
+  else{
+    send(*current_socket, error_answer, strlen(error_answer), 0);
+  }
+
+  return;
 }

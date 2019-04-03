@@ -19,6 +19,7 @@ int main(){
 	int clientSocket, ret;
 	struct sockaddr_in serverAddr;
 	char buffer[1024];
+  char * pch;
 
 	clientSocket = socket(AF_INET, SOCK_STREAM, 0);
 	if(clientSocket < 0){
@@ -41,14 +42,21 @@ int main(){
 
 	while(1){
 		printf("Client: \t");
-		scanf("%s", &buffer[0]);
-		send(clientSocket, buffer, strlen(buffer), 0);
+		fgets(buffer, sizeof(buffer), stdin);
+
+    // Cleans \n character in the end of buffer
+    buffer[strcspn(buffer, "\n")] = 0;
+
+		send(clientSocket, buffer, sizeof(buffer), 0);
 
 		if(strcmp(buffer, ":exit") == 0){
 			close(clientSocket);
 			printf("[-]Disconnected from server.\n");
 			exit(1);
 		}
+
+    // Clean buffer before receiving
+    bzero(buffer, sizeof(buffer));
 
 		if(recv(clientSocket, buffer, 1024, 0) < 0){
 			printf("[-]Error in receiving data.\n");
