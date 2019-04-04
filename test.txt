@@ -1,0 +1,12 @@
+1 -
+
+
+
+2 -
+
+  2.1 - residencia = Parkent
+
+3-
+
+4-
+  4.1 - SELECT * FROM Users inner join Experiences on Users.id = Experiences.user_id where email = 'ljusticedn@mapquest.com';

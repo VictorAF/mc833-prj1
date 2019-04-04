@@ -14,6 +14,9 @@
 
 // Function prototypes:
 void getPeopleByCourse(char *token, int *current_socket, PGconn *conn);
+void getHabilitiesByCity(char *token, int *current_socket, PGconn *conn);
+void getExperiences(char *token, int *current_socket, PGconn *conn);
+void setExperience(char *token, int *current_socket, PGconn *conn);
 
 void do_exit(PGconn *conn) {
 
@@ -109,17 +112,17 @@ int main(){
           getPeopleByCourse(token, &newSocket, conn);
 					bzero(buffer, sizeof(buffer));
 				}
-        else if(strcmp(token, ":cu1") == 0){
-					printf("Disconnected from %s:%d\n", inet_ntoa(newAddr.sin_addr), ntohs(newAddr.sin_port));
-					break;
+        else if(strcmp(token, "get-habilities-by-city") == 0){
+          getHabilitiesByCity(token, &newSocket, conn);
+					bzero(buffer, sizeof(buffer));
 				}
-        else if(strcmp(token, ":cu2") == 0){
-					printf("Disconnected from %s:%d\n", inet_ntoa(newAddr.sin_addr), ntohs(newAddr.sin_port));
-					break;
+        else if(strcmp(token, "get-experiences") == 0){
+          getExperiences(token, &newSocket, conn);
+					bzero(buffer, sizeof(buffer));
 				}
-        else if(strcmp(token, ":cu3") == 0){
-					printf("Disconnected from %s:%d\n", inet_ntoa(newAddr.sin_addr), ntohs(newAddr.sin_port));
-					break;
+        else if(strcmp(token, "set-experience") == 0){
+          setExperience(token, &newSocket, conn);
+          bzero(buffer, sizeof(buffer));
 				}
         else if(strcmp(token, ":cu4") == 0){
 					printf("Disconnected from %s:%d\n", inet_ntoa(newAddr.sin_addr), ntohs(newAddr.sin_port));
@@ -151,7 +154,7 @@ int main(){
 void getPeopleByCourse(char *token, int *current_socket, PGconn *conn){
 
   char *error_answer = "\n----- Error -----\nThe get-people-by-course command requires 1 argument(s):\nget-people-by-course <course-name>\n";
-  char *no_rows = "\n----- Query result -----\n\nNo records found for this course\n";
+  char *no_rows = "\n----- Query result: People by course -----\n\nNo records found for this course\n";
   int argument_counter = -1;
   int rows = 0;
   char *course;
@@ -191,7 +194,7 @@ void getPeopleByCourse(char *token, int *current_socket, PGconn *conn){
       printf("rows: %d\n", rows);
 
       //Create a header for the response:
-      strcpy(response, "\n----- Query result -----\n\n");
+      strcpy(response, "\n----- Query result: People by course -----\n\n");
 
       if(rows > 0){
         for(int i=0; i<rows; i++) {
@@ -208,6 +211,225 @@ void getPeopleByCourse(char *token, int *current_socket, PGconn *conn){
       else{
         send(*current_socket, no_rows, strlen(no_rows), 0);
       }
+    }
+  }
+  else{
+    send(*current_socket, error_answer, strlen(error_answer), 0);
+  }
+
+  return;
+}
+
+// TODO deal with composite city names
+void getHabilitiesByCity(char *token, int *current_socket, PGconn *conn){
+
+  char *error_answer = "\n----- Error -----\nThe get-habilities-by-city command requires 1 argument(s):\nget-habilities-by-city <city>\n";
+  char *no_rows = "\n----- Query result: Habilities by city -----\n\nNo records found for this city\n";
+  int argument_counter = -1;
+  int rows = 0;
+  char *city;
+  char query[2048];
+  char response[4096];
+
+  /* walk through other tokens */
+  while( token != NULL ) {
+    // printf("_%s\n", token);
+    argument_counter++;
+
+    // Save the argument
+    if(argument_counter == 1){
+      city = token;
+    }
+
+    token = strtok(NULL, " ");
+  }
+
+  // Check number of arguments
+  if(argument_counter == 1){
+
+    strcpy(query,
+      "SELECT name FROM Users INNER JOIN users_habilities on Users.id = users_habilities.user_id INNER JOIN Habilities on users_habilities.hability_id = Habilities.id where residencia = '"
+    );
+    strcat(query, city);
+    strcat(query, "'");
+    PGresult *res = PQexec(conn, query);
+
+    if (PQresultStatus(res) != PGRES_TUPLES_OK) {
+
+        printf("No data retrieved\n");
+        PQclear(res);
+        // Maybe there is no need to close the connection
+        // do_exit(conn);
+    }
+    else{
+      rows = PQntuples(res);
+      printf("rows: %d\n", rows);
+
+      //Create a header for the response:
+      strcpy(response, "\n----- Query result: Habilities by city -----\n\n");
+
+      if(rows > 0){
+        for(int i=0; i<rows; i++) {
+
+            printf("%s\n", PQgetvalue(res, i, 0));
+            strcat(response, PQgetvalue(res, i, 0));
+            strcat(response, "\n");
+        }
+
+        // Maybe treat no rows here
+        send(*current_socket, &response, strlen(response), 0);
+        bzero(response, sizeof(response));
+      }
+      else{
+        send(*current_socket, no_rows, strlen(no_rows), 0);
+      }
+    }
+  }
+  else{
+    send(*current_socket, error_answer, strlen(error_answer), 0);
+  }
+
+  return;
+}
+
+void getExperiences(char *token, int *current_socket, PGconn *conn){
+
+  char *error_answer = "\n----- Error -----\nThe get-experiences command requires 1 argument(s):\nget-experiences <email>\n";
+  char *no_rows = "\n----- Query result: User's experiences -----\n\nNo records found for this user \n";
+  int argument_counter = -1;
+  int rows = 0;
+  char *email;
+  char query[2048];
+  char response[4096];
+
+  /* walk through other tokens */
+  while( token != NULL ) {
+    // printf("_%s\n", token);
+    argument_counter++;
+
+    // Save the argument
+    if(argument_counter == 1){
+      email = token;
+    }
+
+    token = strtok(NULL, " ");
+  }
+
+  // Check number of arguments
+  if(argument_counter == 1){
+
+    strcpy(query,
+      "SELECT time, company, name FROM Users inner join Experiences on Users.id = Experiences.user_id where email = '"
+    );
+    strcat(query, email);
+    strcat(query, "'");
+    PGresult *res = PQexec(conn, query);
+
+    if (PQresultStatus(res) != PGRES_TUPLES_OK) {
+
+        printf("No data retrieved\n");
+        PQclear(res);
+        // Maybe there is no need to close the connection
+        // do_exit(conn);
+    }
+    else{
+      rows = PQntuples(res);
+      printf("rows: %d\n", rows);
+
+      //Create a header for the response:
+      strcpy(response, "\n----- Query result: User's experiences -----\n\n");
+
+      if(rows > 0){
+        for(int i=0; i<rows; i++) {
+
+            printf("%s\n", PQgetvalue(res, i, 0));
+            strcat(response, "Trabalhou ");
+            strcat(response, PQgetvalue(res, i, 0));
+            strcat(response, " ano(s) na empresa ");
+            strcat(response, PQgetvalue(res, i, 1));
+            strcat(response, " como ");
+            strcat(response, PQgetvalue(res, i, 2));
+            strcat(response, "\n");
+        }
+
+        // Maybe treat no rows here
+        send(*current_socket, &response, strlen(response), 0);
+        bzero(response, sizeof(response));
+      }
+      else{
+        send(*current_socket, no_rows, strlen(no_rows), 0);
+      }
+    }
+  }
+  else{
+    send(*current_socket, error_answer, strlen(error_answer), 0);
+  }
+
+  return;
+}
+
+void setExperience(char *token, int *current_socket, PGconn *conn){
+
+  char *error_answer = "\n----- Error -----\nThe set-experience command requires 4 argument(s):\nset-experiences <user-id> <job-title> <time> <company>\n";
+  char *no_rows = "\n----- Query result: Set user experience -----\n\nNo records found for this user \n";
+  int argument_counter = -1;
+  int rows = 0;
+  char *user_id;
+  char *job_title;
+  char *time;
+  char *company;
+  char query[2048];
+  char response[4096];
+
+  /* walk through other tokens */
+  while( token != NULL ) {
+    // printf("_%s\n", token);
+    argument_counter++;
+
+    // Save the arguments
+    if(argument_counter == 1){
+      user_id = token;
+    }
+    if(argument_counter == 2){
+      job_title = token;
+    }
+    if(argument_counter == 3){
+      time = token;
+    }
+    if(argument_counter == 4){
+      company = token;
+    }
+
+    token = strtok(NULL, " ");
+  }
+
+  // Check number of arguments
+  if(argument_counter == 4){
+
+    strcpy(query,
+      "INSERT INTO Experiences (user_id, name, time, company) VALUES("
+    );
+    strcat(query, user_id);
+    strcat(query, ",'");
+    strcat(query, job_title);
+    strcat(query, "',");
+    strcat(query, time);
+    strcat(query, ",'");
+    strcat(query, company);
+    strcat(query, "')");
+    printf("Query: %s\n", query);
+    PGresult *res = PQexec(conn, query);
+
+    if (PQresultStatus(res) != PGRES_COMMAND_OK){
+      printf("\n----- Error: Could not insert Experience for user -----\n");
+      PQclear(res);
+    }
+    else{
+
+      strcpy(response, "\n----- Success! Record Inserted -----\n\n");
+      // Maybe treat no rows here
+      send(*current_socket, &response, strlen(response), 0);
+      bzero(response, sizeof(response));
     }
   }
   else{
