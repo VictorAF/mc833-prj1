@@ -19,6 +19,7 @@ void getExperiences(char *token, int *current_socket, PGconn *conn);
 void setExperience(char *token, int *current_socket, PGconn *conn);
 void getPerson(char *token, int *current_socket, PGconn *conn);
 void getPersonExperiencesByid(char *id, char* response,int *current_socket, PGconn *conn);
+void getPersonHabilitiesByid(char *id, char *response, int *current_socket, PGconn *conn);
 
 void do_exit(PGconn *conn) {
 
@@ -129,7 +130,6 @@ int main(){
         else if(strcmp(token, "get-person") == 0){
           getPerson(token, &newSocket, conn);
           bzero(buffer, sizeof(buffer));
-					break;
 				}
         else{
 					printf("Client: %s\n", buffer);
@@ -553,7 +553,6 @@ void getPersonExperiencesByid(char *id, char *response, int *current_socket, PGc
   }
   else{
     rows = PQntuples(res);
-    printf("rows: %d\n", rows);
 
     //Create a header for the response:
     strcat(response, "\n----- User's experiences -----\n\n");
@@ -572,7 +571,46 @@ void getPersonExperiencesByid(char *id, char *response, int *current_socket, PGc
       }
 
       // Maybe treat no rows here
-      printf("REsponse: %s\n", response);
+      getPersonHabilitiesByid(id, response, current_socket, conn);
+    }
+    else{
+      send(*current_socket, no_rows, strlen(no_rows), 0);
+    }
+  }
+  return;
+}
+
+void getPersonHabilitiesByid(char *id, char *response, int *current_socket, PGconn *conn){
+  char query[2048];
+  int rows = 0;
+  char *no_rows = "\nNo habilities found for this user\n";
+
+  strcpy(query,
+    "SELECT name FROM Users INNER JOIN users_habilities on Users.id = users_habilities.user_id INNER JOIN Habilities on users_habilities.hability_id = Habilities.id where Users.id ='"
+  );
+  strcat(query, id);
+  strcat(query, "'");
+  PGresult *res = PQexec(conn, query);
+
+  if (PQresultStatus(res) != PGRES_TUPLES_OK) {
+
+      printf("No data retrieved\n");
+      PQclear(res);
+      // Maybe there is no need to close the connection
+      // do_exit(conn);
+  }
+  else{
+    rows = PQntuples(res);
+    //Create a header for the response:
+    strcat(response, "\n----- User's Habilities -----\n\n");
+
+    if(rows > 0){
+      for(int i=0; i<rows; i++) {
+          strcat(response, PQgetvalue(res, i, 0));
+          strcat(response, "\n");
+      }
+
+      // Maybe treat no rows here
       send(*current_socket, response, strlen(response), 0);
       bzero(response, sizeof(*response));
     }
