@@ -18,7 +18,7 @@ void getHabilitiesByCity(char *token, int *current_socket, PGconn *conn);
 void getExperiences(char *token, int *current_socket, PGconn *conn);
 void setExperience(char *token, int *current_socket, PGconn *conn);
 void getPerson(char *token, int *current_socket, PGconn *conn);
-void getPersonExperiencesByid(char *id, int *current_socket, PGconn *conn);
+void getPersonExperiencesByid(char *id, char* response,int *current_socket, PGconn *conn);
 
 void do_exit(PGconn *conn) {
 
@@ -449,6 +449,7 @@ void getPerson(char *token, int *current_socket, PGconn *conn){
   int argument_counter = -1;
   int rows = 0;
   char *email;
+  char *id;
   char query[2048];
   char response[4096];
 
@@ -492,7 +493,8 @@ void getPerson(char *token, int *current_socket, PGconn *conn){
         for(int i=0; i<rows; i++) {
 
             strcat(response, "id: ");
-            strcat(response, PQgetvalue(res, i, 0));
+            id = PQgetvalue(res, i, 0);
+            strcat(response, id);
             strcat(response, "\n");
             strcat(response, "Nome: ");
             strcat(response, PQgetvalue(res, i, 1));
@@ -514,12 +516,9 @@ void getPerson(char *token, int *current_socket, PGconn *conn){
             strcat(response, "\n");
         }
 
-        // Maybe treat no rows here
-        send(*current_socket, &response, strlen(response), 0);
-        bzero(response, sizeof(response));
 
         //Other data
-        getPersonExperiencesByid(PQgetvalue(res, 0, 0), current_socket, conn);
+        getPersonExperiencesByid(id, response, current_socket, conn);
       }
       else{
         send(*current_socket, no_rows, strlen(no_rows), 0);
@@ -533,14 +532,13 @@ void getPerson(char *token, int *current_socket, PGconn *conn){
   return;
 }
 
-void getPersonExperiencesByid(char *id, int *current_socket, PGconn *conn){
+void getPersonExperiencesByid(char *id, char *response, int *current_socket, PGconn *conn){
   char query[2048];
-  char response[4096];
   int rows = 0;
   char *no_rows = "\nNo experiences found for this user\n";
 
   strcpy(query,
-    "SELECT time, company, name FROM Users inner join Experiences on Users.id = Experiences.user_id where id = '"
+    "SELECT time, company, name FROM Users inner join Experiences on Users.id = Experiences.user_id where Users.id = '"
   );
   strcat(query, id);
   strcat(query, "'");
@@ -558,7 +556,7 @@ void getPersonExperiencesByid(char *id, int *current_socket, PGconn *conn){
     printf("rows: %d\n", rows);
 
     //Create a header for the response:
-    strcpy(response, "\n----- User's experiences -----\n\n");
+    strcat(response, "\n----- User's experiences -----\n\n");
 
     if(rows > 0){
       for(int i=0; i<rows; i++) {
@@ -574,11 +572,13 @@ void getPersonExperiencesByid(char *id, int *current_socket, PGconn *conn){
       }
 
       // Maybe treat no rows here
-      send(*current_socket, &response, strlen(response), 0);
-      bzero(response, sizeof(response));
+      printf("REsponse: %s\n", response);
+      send(*current_socket, response, strlen(response), 0);
+      bzero(response, sizeof(*response));
     }
     else{
       send(*current_socket, no_rows, strlen(no_rows), 0);
     }
   }
+  return;
 }
