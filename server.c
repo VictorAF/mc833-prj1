@@ -17,6 +17,8 @@ void getPeopleByCourse(char *token, int *current_socket, PGconn *conn);
 void getHabilitiesByCity(char *token, int *current_socket, PGconn *conn);
 void getExperiences(char *token, int *current_socket, PGconn *conn);
 void setExperience(char *token, int *current_socket, PGconn *conn);
+void getPerson(char *token, int *current_socket, PGconn *conn);
+void getPersonExperiencesByid(char *id, int *current_socket, PGconn *conn);
 
 void do_exit(PGconn *conn) {
 
@@ -124,8 +126,9 @@ int main(){
           setExperience(token, &newSocket, conn);
           bzero(buffer, sizeof(buffer));
 				}
-        else if(strcmp(token, ":cu4") == 0){
-					printf("Disconnected from %s:%d\n", inet_ntoa(newAddr.sin_addr), ntohs(newAddr.sin_port));
+        else if(strcmp(token, "get-person") == 0){
+          getPerson(token, &newSocket, conn);
+          bzero(buffer, sizeof(buffer));
 					break;
 				}
         else{
@@ -437,4 +440,145 @@ void setExperience(char *token, int *current_socket, PGconn *conn){
   }
 
   return;
+}
+
+void getPerson(char *token, int *current_socket, PGconn *conn){
+
+  char *error_answer = "\n----- Error -----\nThe get-person command requires 1 argument(s):\nget-person <email>\n";
+  char *no_rows = "\n----- Query result: Get person information -----\n\nNo records found for this person\n";
+  int argument_counter = -1;
+  int rows = 0;
+  char *email;
+  char query[2048];
+  char response[4096];
+
+  /* walk through other tokens */
+  while( token != NULL ) {
+    // printf("_%s\n", token);
+    argument_counter++;
+
+    // Save the argument
+    if(argument_counter == 1){
+      email = token;
+    }
+
+    token = strtok(NULL, " ");
+  }
+
+  // Check number of arguments
+  if(argument_counter == 1){
+
+    strcpy(query,
+      "SELECT * FROM Users where email = '"
+    );
+    strcat(query, email);
+    strcat(query, "'");
+    PGresult *res = PQexec(conn, query);
+
+    if (PQresultStatus(res) != PGRES_TUPLES_OK) {
+
+        printf("No data retrieved\n");
+        PQclear(res);
+        // Maybe there is no need to close the connection
+        // do_exit(conn);
+    }
+    else{
+      rows = PQntuples(res);
+
+      //Create a header for the response:
+      strcpy(response, "\n----- Query result: Get person information -----\n\n");
+
+      if(rows > 0){
+        for(int i=0; i<rows; i++) {
+
+            strcat(response, "id: ");
+            strcat(response, PQgetvalue(res, i, 0));
+            strcat(response, "\n");
+            strcat(response, "Nome: ");
+            strcat(response, PQgetvalue(res, i, 1));
+            strcat(response, "\n");
+            strcat(response, "Sobrenome: ");
+            strcat(response, PQgetvalue(res, i, 2));
+            strcat(response, "\n");
+            strcat(response, "Email: ");
+            strcat(response, PQgetvalue(res, i, 3));
+            strcat(response, "\n");
+            strcat(response, "Foto: ");
+            strcat(response, PQgetvalue(res, i, 4));
+            strcat(response, "\n");
+            strcat(response, "Residencia: ");
+            strcat(response, PQgetvalue(res, i, 5));
+            strcat(response, "\n");
+            strcat(response, "Formação: ");
+            strcat(response, PQgetvalue(res, i, 6));
+            strcat(response, "\n");
+        }
+
+        // Maybe treat no rows here
+        send(*current_socket, &response, strlen(response), 0);
+        bzero(response, sizeof(response));
+
+        //Other data
+        getPersonExperiencesByid(PQgetvalue(res, 0, 0), current_socket, conn);
+      }
+      else{
+        send(*current_socket, no_rows, strlen(no_rows), 0);
+      }
+    }
+  }
+  else{
+    send(*current_socket, error_answer, strlen(error_answer), 0);
+  }
+
+  return;
+}
+
+void getPersonExperiencesByid(char *id, int *current_socket, PGconn *conn){
+  char query[2048];
+  char response[4096];
+  int rows = 0;
+  char *no_rows = "\nNo experiences found for this user\n";
+
+  strcpy(query,
+    "SELECT time, company, name FROM Users inner join Experiences on Users.id = Experiences.user_id where id = '"
+  );
+  strcat(query, id);
+  strcat(query, "'");
+  PGresult *res = PQexec(conn, query);
+
+  if (PQresultStatus(res) != PGRES_TUPLES_OK) {
+
+      printf("No data retrieved\n");
+      PQclear(res);
+      // Maybe there is no need to close the connection
+      // do_exit(conn);
+  }
+  else{
+    rows = PQntuples(res);
+    printf("rows: %d\n", rows);
+
+    //Create a header for the response:
+    strcpy(response, "\n----- User's experiences -----\n\n");
+
+    if(rows > 0){
+      for(int i=0; i<rows; i++) {
+
+          printf("%s\n", PQgetvalue(res, i, 0));
+          strcat(response, "Trabalhou ");
+          strcat(response, PQgetvalue(res, i, 0));
+          strcat(response, " ano(s) na empresa ");
+          strcat(response, PQgetvalue(res, i, 1));
+          strcat(response, " como ");
+          strcat(response, PQgetvalue(res, i, 2));
+          strcat(response, "\n");
+      }
+
+      // Maybe treat no rows here
+      send(*current_socket, &response, strlen(response), 0);
+      bzero(response, sizeof(response));
+    }
+    else{
+      send(*current_socket, no_rows, strlen(no_rows), 0);
+    }
+  }
 }
