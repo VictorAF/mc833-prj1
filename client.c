@@ -18,7 +18,7 @@ int main(){
 
 	int clientSocket, ret;
 	struct sockaddr_in serverAddr;
-	char buffer[1024];
+	char buffer[4096];
   char * pch;
 
 	clientSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -58,7 +58,7 @@ int main(){
     // Clean buffer before receiving
     bzero(buffer, sizeof(buffer));
 
-		if(recv(clientSocket, buffer, 1024, 0) < 0){
+		if(recv(clientSocket, buffer, 4096, 0) < 0){
 			printf("[-]Error in receiving data.\n");
 		}else{
 			printf("Server: \t%s\n", buffer);
