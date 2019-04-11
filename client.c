@@ -6,6 +6,7 @@
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/time.h>
 
 #define PORT 4444
 
@@ -20,6 +21,7 @@ int main(){
 	struct sockaddr_in serverAddr;
 	char buffer[4096];
   char * pch;
+	struct timeval tv1, tv2, elapsed_timeval;
 
 	clientSocket = socket(AF_INET, SOCK_STREAM, 0);
 	if(clientSocket < 0){
@@ -48,6 +50,7 @@ int main(){
     buffer[strcspn(buffer, "\n")] = 0;
 
 		send(clientSocket, buffer, sizeof(buffer), 0);
+		gettimeofday(&tv1, NULL);
 
 		if(strcmp(buffer, ":exit") == 0){
 			close(clientSocket);
@@ -63,6 +66,14 @@ int main(){
 		}else{
 			printf("Server: \t%s\n", buffer);
 		}
+		gettimeofday(&tv2, NULL);
+		timersub(&tv1, &tv2, &elapsed_timeval);
+
+		if(elapsed_timeval.tv_sec < 0){
+		  elapsed_timeval.tv_sec = 0;
+		}
+
+		printf("Elapsed time for request/response: %ld:%d (sec:usec)\n", elapsed_timeval.tv_sec, elapsed_timeval.tv_usec);
 	}
 
 	return 0;
