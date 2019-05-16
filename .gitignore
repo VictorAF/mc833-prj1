@@ -2,4 +2,4 @@ test/
 project-roadmap.c
 client
 server
-upd-client-server/
+upd-client-server/*
