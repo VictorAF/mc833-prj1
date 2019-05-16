@@ -1,3 +1,13 @@
+/* 16/05/2019
+1- Remember the basics of C TCP/UDP communication (Done)
+2- Quick review the code of the first project (Done)
+3- Read Project 2 description (Done)
+4- Learn about the specialities about UDP
+  - Simple implementation of UDP client and server (Done)
+  - Understand the ideia of using TCP concurrent and UDP iterative server
+5- Implement UDP/TCP server using select
+*/
+
 /* Code rodemap
 1- Implement a simple tcp client
 2- Implement a simple tcp server
@@ -256,4 +266,4 @@ https://github.com/angrave/SystemProgramming/wiki/Networking,-Part-2:-Using-geta
     - Not initializing the unused struct entries
     - The bind call will fail if the port is currently in use
 
-  -- 
+  --
